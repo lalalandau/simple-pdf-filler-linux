@@ -1,0 +1,62 @@
+{
+  "name": "simple-pdf-filler",
+  "version": "0.1.0",
+  "description": "Local-first PDF form filler for Linux.",
+  "main": "dist/main/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "dev:electron": "npm run build:main && concurrently -k \"npm run dev\" \"wait-on tcp:5173 && electron .\"",
+    "build": "npm run typecheck && npm run test && npm run build:renderer && npm run build:main",
+    "build:renderer": "vite build",
+    "build:main": "tsc -p tsconfig.main.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.main.json",
+    "test": "vitest run",
+    "package:linux": "npm run build && node scripts/patch-electron-builder.cjs && NODE_OPTIONS=--no-warnings npm_config_loglevel=error electron-builder --linux AppImage",
+    "start": "electron ."
+  },
+  "keywords": [
+    "pdf",
+    "electron",
+    "forms"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron-is-dev": "^3.0.1",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.4.394",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "concurrently": "^9.2.0",
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.0",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.local.simple-pdf-filler",
+    "productName": "Simple PDF Filler",
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office"
+    },
+    "directories": {
+      "output": "release"
+    }
+  }
+}

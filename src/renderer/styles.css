@@ -1,0 +1,296 @@
+:root {
+  color: #1d252c;
+  background: #dfe5ea;
+  font-family: "Aptos", "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 900px;
+  min-height: 650px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.8), transparent 28rem),
+    linear-gradient(135deg, #eef2f5, #cbd4dc);
+}
+
+.toolbar,
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.9rem;
+  background: rgba(247, 249, 250, 0.94);
+  border-bottom: 1px solid #bdc8d1;
+  box-shadow: 0 1px 10px rgba(30, 42, 54, 0.08);
+}
+
+.statusbar {
+  min-height: 2.6rem;
+  justify-content: space-between;
+  border-top: 1px solid #bdc8d1;
+  border-bottom: 0;
+  font-size: 0.86rem;
+  color: #45535f;
+}
+
+button {
+  border: 1px solid #a9b6c1;
+  border-radius: 0.55rem;
+  background: #ffffff;
+  color: #1e2a36;
+  padding: 0.42rem 0.7rem;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+button.active {
+  border-color: #254c67;
+  background: #eaf3f8;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.divider {
+  width: 1px;
+  height: 1.7rem;
+  margin: 0 0.25rem;
+  background: #c8d0d7;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.field-control,
+.field-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.field-control input {
+  width: 4rem;
+}
+
+.zoom {
+  width: 3.2rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace {
+  overflow: auto;
+  padding: 2rem;
+}
+
+.empty {
+  max-width: 42rem;
+  margin: 12vh auto;
+  padding: 3rem;
+  border: 1px dashed #8fa0ae;
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.74);
+  text-align: center;
+}
+
+.empty h1 {
+  margin: 0 0 0.6rem;
+  font-size: 2rem;
+}
+
+.empty p {
+  margin: 0 0 1.5rem;
+  color: #52616e;
+}
+
+.pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.page-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.page-label {
+  color: #60707e;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.page {
+  position: relative;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 20px 50px rgba(30, 42, 54, 0.24);
+}
+
+.page canvas,
+.overlay-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.overlay-layer {
+  z-index: 2;
+}
+
+.page-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+  background: #fff4f1;
+  color: #8b2f1a;
+  font-weight: 700;
+}
+
+.detected-field,
+.detected-checkbox,
+.detected-radio {
+  position: absolute;
+  border: 1px dashed rgba(36, 87, 122, 0.7);
+  background: rgba(255, 255, 255, 0.35);
+  color: #111820;
+  z-index: 3;
+}
+
+.detected-field:focus {
+  outline: 2px solid #24577a;
+}
+
+.detected-checkbox,
+.detected-radio {
+  padding: 0;
+  border-radius: 0.1rem;
+}
+
+.detected-checkbox svg,
+.check-overlay svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.detected-radio {
+  border-radius: 999px;
+}
+
+.detected-radio span {
+  display: block;
+  width: 58%;
+  height: 58%;
+  margin: 21%;
+  border-radius: 999px;
+  background: black;
+}
+
+.manual-overlay {
+  position: absolute;
+  z-index: 4;
+  cursor: move;
+}
+
+.manual-overlay:hover {
+  outline: 1px solid rgba(20, 63, 91, 0.45);
+}
+
+.manual-overlay.selected {
+  outline: 2px solid #143f5b;
+}
+
+.text-overlay {
+  color: black;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.text-overlay input,
+.text-overlay .text-editor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 2px solid #143f5b;
+  background: transparent;
+  color: black;
+  font: inherit;
+  line-height: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+.text-overlay span {
+  display: block;
+  min-width: 2rem;
+  line-height: inherit;
+}
+
+.text-overlay .text-editor {
+  min-width: 2rem;
+  white-space: nowrap;
+}
+
+.resize-handle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid white;
+  border-radius: 999px;
+  background: #143f5b;
+  cursor: nwse-resize;
+}
+
+.export-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.export-actions button {
+  padding: 0.25rem 0.5rem;
+}
+
+@media (max-width: 980px) {
+  body {
+    min-width: 0;
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .workspace {
+    padding: 1rem;
+  }
+}
