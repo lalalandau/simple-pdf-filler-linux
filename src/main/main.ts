@@ -19,6 +19,8 @@ interface PdfSession {
 
 let mainWindow: BrowserWindow | null = null;
 let currentSession: PdfSession | null = null;
+let hasUnsavedEdits = false;
+let closeConfirmed = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -40,6 +42,27 @@ function createWindow() {
   } else {
     void mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
+
+  mainWindow.on("close", async (event) => {
+    if (!hasUnsavedEdits || closeConfirmed) {
+      return;
+    }
+
+    event.preventDefault();
+    const result = await dialog.showMessageBox(mainWindow!, {
+      type: "warning",
+      buttons: ["Discard edits and close", "Cancel"],
+      defaultId: 1,
+      cancelId: 1,
+      message: "Discard current edits?",
+      detail: "You have unsaved PDF edits that have not been exported."
+    });
+
+    if (result.response === 0) {
+      closeConfirmed = true;
+      mainWindow?.close();
+    }
+  });
 }
 
 function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -213,6 +236,9 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("shell:showItemInFolder", (_event, filePath: string) => {
     shell.showItemInFolder(filePath);
+  });
+  ipcMain.on("app:setDirtyState", (_event, dirty: boolean) => {
+    hasUnsavedEdits = dirty;
   });
 
   createWindow();

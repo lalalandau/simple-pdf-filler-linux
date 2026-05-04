@@ -75,5 +75,6 @@ export interface AppApi {
   exportPdf(snapshot: ExportSnapshot, previousPath?: string): Promise<ExportResult | null>;
   openExternalFile(filePath: string): Promise<void>;
   showItemInFolder(filePath: string): Promise<void>;
+  setDirtyState(dirty: boolean): void;
   platform: string;
 }

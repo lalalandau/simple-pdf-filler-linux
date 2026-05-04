@@ -428,14 +428,7 @@ function App() {
   }, [dirty, editor, pages]);
 
   useEffect(() => {
-    function onBeforeUnload(event: BeforeUnloadEvent) {
-      if (dirty) {
-        event.preventDefault();
-      }
-    }
-
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    window.pdfApp.setDirtyState(dirty);
   }, [dirty]);
 
   const selected = editor.overlays.find((overlay) => overlay.id === editor.selectedId);
