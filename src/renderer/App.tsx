@@ -136,6 +136,10 @@ function createCheckmarkOverlay(pageIndex: number, x: number, y: number): Overla
   };
 }
 
+function isTextEntryElement(element: Element | null): boolean {
+  return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || (element instanceof HTMLElement && element.isContentEditable);
+}
+
 function detectFieldType(annotation: Record<string, unknown>): DetectedFieldType {
   if (annotation.fieldType === "Tx") {
     return annotation.multiLine ? "multiline" : "text";
@@ -382,7 +386,7 @@ function App() {
         event.preventDefault();
         duplicateSelected();
       } else if (event.key === "Delete" || event.key === "Backspace") {
-        if (editor.selectedId && !(document.activeElement instanceof HTMLInputElement) && !(document.activeElement instanceof HTMLTextAreaElement)) {
+        if (editor.selectedId && !isTextEntryElement(document.activeElement)) {
           event.preventDefault();
           removeSelected();
         }
@@ -397,7 +401,7 @@ function App() {
       } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key) && editor.selectedId) {
         const selected = editor.overlays.find((overlay) => overlay.id === editor.selectedId);
         const page = selected ? pages[selected.pageIndex] : undefined;
-        if (!selected || !page || document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) {
+        if (!selected || !page || isTextEntryElement(document.activeElement)) {
           return;
         }
         event.preventDefault();
