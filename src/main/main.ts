@@ -3,8 +3,8 @@ import isDev from "electron-is-dev";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PDFCheckBox, PDFDocument, PDFDropdown, PDFRadioGroup, PDFTextField, rgb, StandardFonts } from "pdf-lib";
-import type { ExportSnapshot, OpenedPdf } from "../shared/types.js";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import type { DetectedFieldWidget, ExportSnapshot, FieldValue, OpenedPdf, PageGeometry } from "../shared/types.js";
 import { pdfRectToPdfLib } from "../shared/coordinates.js";
 import { findUnsupportedManualText, normalizeManualTextForExport } from "../shared/text.js";
 
@@ -128,37 +128,6 @@ function assertBasicLatin(snapshot: ExportSnapshot) {
   }
 }
 
-async function applyFieldValues(pdfDoc: PDFDocument, snapshot: ExportSnapshot) {
-  const form = pdfDoc.getForm();
-  for (const [name, value] of Object.entries(snapshot.fieldValues)) {
-    const field = form.getFieldMaybe(name);
-    if (!field) {
-      continue;
-    }
-
-    try {
-      if (field instanceof PDFTextField && typeof value === "string") {
-        field.setText(value);
-      } else if (field instanceof PDFCheckBox && typeof value === "boolean") {
-        if (value) {
-          field.check();
-        } else {
-          field.uncheck();
-        }
-      } else if (field instanceof PDFDropdown && typeof value === "string") {
-        field.select(value);
-      } else if (field instanceof PDFRadioGroup && typeof value === "string") {
-        field.select(value);
-      }
-    } catch {
-      // Badly-authored PDFs can reject a value. Manual fallback drawing is handled separately.
-    }
-  }
-
-  form.updateFieldAppearances(await pdfDoc.embedFont(StandardFonts.Helvetica));
-  form.flatten();
-}
-
 async function exportPdf(snapshot: ExportSnapshot, previousPath?: string) {
   if (!currentSession) {
     throw new Error("No PDF is open.");
@@ -171,9 +140,15 @@ async function exportPdf(snapshot: ExportSnapshot, previousPath?: string) {
   }
 
   const pdfDoc = await PDFDocument.load(currentSession.bytes, { ignoreEncryption: false });
-  await applyFieldValues(pdfDoc, snapshot);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const pages = pdfDoc.getPages();
+
+  drawDetectedFieldValues(pdfDoc, snapshot, font);
+  try {
+    pdfDoc.getForm().flatten();
+  } catch {
+    // Some PDFs have malformed AcroForm data. Manual widget values have already been drawn.
+  }
 
   for (const overlay of snapshot.overlays) {
     const page = pages[overlay.pageIndex];
@@ -225,6 +200,57 @@ async function exportPdf(snapshot: ExportSnapshot, previousPath?: string) {
 
   await writeFile(outputPath, await pdfDoc.save());
   return { filePath: outputPath };
+}
+
+function drawDetectedFieldValues(pdfDoc: PDFDocument, snapshot: ExportSnapshot, font: Awaited<ReturnType<PDFDocument["embedFont"]>>) {
+  const pages = pdfDoc.getPages();
+  for (const field of snapshot.fields) {
+    const value = snapshot.fieldValues[field.id];
+    const page = pages[field.pageIndex];
+    const pageGeometry = snapshot.pages[field.pageIndex];
+    if (!page || !pageGeometry || value === undefined || value === false || value === "") {
+      continue;
+    }
+
+    drawDetectedFieldValue(page, pageGeometry, field, value, font);
+  }
+}
+
+function drawDetectedFieldValue(
+  page: ReturnType<PDFDocument["getPages"]>[number],
+  pageGeometry: PageGeometry,
+  field: DetectedFieldWidget,
+  value: FieldValue,
+  font: Awaited<ReturnType<PDFDocument["embedFont"]>>
+) {
+  const pdfRect = pdfRectToPdfLib(field, pageGeometry);
+  if (typeof value === "boolean") {
+    const strokeWidth = Math.max(1, Math.min(pdfRect.width, pdfRect.height) * 0.12);
+    page.drawLine({
+      start: { x: pdfRect.x + pdfRect.width * 0.12, y: pdfRect.y + pdfRect.height * 0.48 },
+      end: { x: pdfRect.x + pdfRect.width * 0.4, y: pdfRect.y + pdfRect.height * 0.18 },
+      thickness: strokeWidth,
+      color: rgb(0, 0, 0)
+    });
+    page.drawLine({
+      start: { x: pdfRect.x + pdfRect.width * 0.4, y: pdfRect.y + pdfRect.height * 0.18 },
+      end: { x: pdfRect.x + pdfRect.width * 0.9, y: pdfRect.y + pdfRect.height * 0.86 },
+      thickness: strokeWidth,
+      color: rgb(0, 0, 0)
+    });
+    return;
+  }
+
+  const text = normalizeManualTextForExport(value);
+  const fontSize = Math.max(6, Math.min(12, pdfRect.height * 0.7));
+  page.drawText(text, {
+    x: pdfRect.x + 2,
+    y: pdfRect.y + Math.max(2, (pdfRect.height - fontSize) / 2),
+    size: fontSize,
+    font,
+    color: rgb(0, 0, 0),
+    maxWidth: Math.max(1, pdfRect.width - 4)
+  });
 }
 
 app.whenReady().then(() => {

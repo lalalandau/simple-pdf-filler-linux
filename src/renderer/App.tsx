@@ -371,7 +371,7 @@ function App() {
       overlays: editor.overlays,
       fieldValues: {
         ...editor.fieldValues,
-        [field.fieldName]: value
+        [field.id]: value
       }
     });
   }
@@ -603,7 +603,7 @@ function PdfPageView({ pdf, page, pageIndex, zoom, editor, fields, commit, updat
         <div className="overlay-layer" style={{ width, height }} onMouseDown={handlePageClick}>
           {editor.showFields
             ? fields.map((field) => (
-                <DetectedFieldOverlay key={field.id} field={field} value={editor.fieldValues[field.fieldName]} scale={zoom} setFieldValue={setFieldValue} />
+                <DetectedFieldOverlay key={field.id} field={field} value={editor.fieldValues[field.id]} scale={zoom} setFieldValue={setFieldValue} />
               ))
             : null}
           {pageOverlays.map((overlay) => (
@@ -667,8 +667,8 @@ function DetectedFieldOverlay({ field, value, scale, setFieldValue }: { field: D
 
   if (field.type === "radio") {
     return (
-      <button type="button" className={`detected-radio ${value === field.exportValue ? "checked" : ""}`} style={style} onClick={() => setFieldValue(field, field.exportValue ?? field.fieldName)} aria-label={field.fieldName}>
-        {value === field.exportValue ? <span /> : null}
+      <button type="button" className={`detected-radio ${Boolean(value) ? "checked" : ""}`} style={style} onClick={() => setFieldValue(field, !value)} aria-label={field.fieldName}>
+        {Boolean(value) ? <span /> : null}
       </button>
     );
   }
