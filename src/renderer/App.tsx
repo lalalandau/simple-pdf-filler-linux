@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
-import { annotationRectToTopLeft, clampRectToPage, nudgeRect, pdfRectToCss, screenToPdfPoint } from "../shared/coordinates";
+import { annotationRectToTopLeft, clampRectToPage, pdfRectToCss, screenToPdfPoint } from "../shared/coordinates";
 import { findUnsupportedManualText, normalizeManualTextForExport } from "../shared/text";
 import type { DetectedFieldType, DetectedFieldWidget, ExportSnapshot, FieldValue, OpenedPdf, Overlay, PageGeometry, Tool } from "../shared/types";
 import "./styles.css";
@@ -135,10 +135,6 @@ function createCheckmarkOverlay(pageIndex: number, x: number, y: number): Overla
     width: 12,
     height: 12
   };
-}
-
-function isTextEntryElement(element: Element | null): boolean {
-  return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || (element instanceof HTMLElement && element.isContentEditable);
 }
 
 function detectFieldType(annotation: Record<string, unknown>): DetectedFieldType {
@@ -368,66 +364,6 @@ function App() {
   }
 
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const command = event.metaKey || event.ctrlKey;
-
-      if (command && event.key.toLowerCase() === "o") {
-        event.preventDefault();
-        void openPdf();
-      } else if (command && event.key.toLowerCase() === "e") {
-        event.preventDefault();
-        void exportPdf();
-      } else if (command && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        dispatch({ type: event.shiftKey ? "redo" : "undo" });
-        setDirty(true);
-      } else if (command && event.key.toLowerCase() === "y") {
-        event.preventDefault();
-        dispatch({ type: "redo" });
-        setDirty(true);
-      } else if (command && event.key.toLowerCase() === "d") {
-        event.preventDefault();
-        duplicateSelected();
-      } else if (event.key === "Delete" || event.key === "Backspace") {
-        if (editor.selectedId && !isTextEntryElement(document.activeElement)) {
-          event.preventDefault();
-          removeSelected();
-        }
-      } else if (event.key === "Escape") {
-        dispatch({ type: "select", id: null });
-      } else if (event.key === "Enter" && editor.selectedId && !editor.editingId) {
-        const selected = editor.overlays.find((overlay) => overlay.id === editor.selectedId);
-        if (selected?.type === "text") {
-          event.preventDefault();
-          dispatch({ type: "edit", id: selected.id });
-        }
-      } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key) && editor.selectedId) {
-        const selected = editor.overlays.find((overlay) => overlay.id === editor.selectedId);
-        const page = selected ? pages[selected.pageIndex] : undefined;
-        if (!selected || !page || isTextEntryElement(document.activeElement)) {
-          return;
-        }
-        event.preventDefault();
-        const amount = event.shiftKey ? 10 : 1;
-        const dx = event.key === "ArrowLeft" ? -amount : event.key === "ArrowRight" ? amount : 0;
-        const dy = event.key === "ArrowUp" ? -amount : event.key === "ArrowDown" ? amount : 0;
-        updateOverlay({ ...selected, ...nudgeRect(selected, page, dx, dy) });
-      } else if (!command && !event.altKey) {
-        if (event.key.toLowerCase() === "v") {
-          dispatch({ type: "setTool", tool: "select" });
-        } else if (event.key.toLowerCase() === "t") {
-          dispatch({ type: "setTool", tool: "text" });
-        } else if (event.key.toLowerCase() === "c") {
-          dispatch({ type: "setTool", tool: "checkmark" });
-        }
-      }
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [dirty, editor, pages]);
-
-  useEffect(() => {
     window.pdfApp.setDirtyState(dirty);
   }, [dirty]);
 
@@ -494,9 +430,6 @@ function App() {
           Show Fields
         </label>
         <span className="spacer" />
-        <button type="button" onClick={() => alert(shortcutsText)}>
-          Help
-        </button>
       </header>
 
       <main className="workspace">
@@ -864,16 +797,5 @@ function CheckmarkSvg() {
     </svg>
   );
 }
-
-const shortcutsText = `Keyboard Shortcuts
-
-Open: Ctrl/Cmd+O
-Export: Ctrl/Cmd+E
-Undo: Ctrl/Cmd+Z
-Redo: Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y
-Tools: V Select, T Text, C Checkmark
-Duplicate: Ctrl/Cmd+D
-Delete: Delete/Backspace
-Nudge: Arrow keys, Shift+Arrow for 10 px`;
 
 createRoot(document.getElementById("root")!).render(<App />);
