@@ -4,6 +4,7 @@ import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
 import { annotationRectToTopLeft, clampRectToPage, nudgeRect, pdfRectToCss, screenToPdfPoint } from "../shared/coordinates";
+import { findUnsupportedManualText, normalizeManualTextForExport } from "../shared/text";
 import type { DetectedFieldType, DetectedFieldWidget, ExportSnapshot, FieldValue, OpenedPdf, Overlay, PageGeometry, Tool } from "../shared/types";
 import "./styles.css";
 
@@ -274,14 +275,16 @@ function App() {
       return;
     }
 
-    const invalid = editor.overlays.find((overlay) => overlay.type === "text" && /[^\u0009\u000a\u000d\u0020-\u007e]/.test(overlay.text));
-    if (invalid?.type === "text") {
+    const invalid = findUnsupportedManualText(editor.overlays);
+    if (invalid) {
       setStatus(`Export blocked: unsupported characters in manual text on page ${invalid.pageIndex + 1}.`);
       return;
     }
 
     const snapshot: ExportSnapshot = {
-      overlays: editor.overlays.filter((overlay) => overlay.type !== "text" || overlay.text.trim().length > 0),
+      overlays: editor.overlays
+        .map((overlay) => (overlay.type === "text" ? { ...overlay, text: normalizeManualTextForExport(overlay.text) } : overlay))
+        .filter((overlay) => overlay.type !== "text" || overlay.text.trim().length > 0),
       fieldValues: editor.fieldValues,
       fields,
       pages
@@ -843,7 +846,7 @@ function EditableText({
       contentEditable
       suppressContentEditableWarning
       onInput={(event) => {
-        const text = event.currentTarget.textContent ?? "";
+        const text = normalizeManualTextForExport(event.currentTarget.textContent ?? "");
         updateOverlay({ ...overlay, text, width: Math.max(80, text.length * overlay.fontSize * 0.65) }, overlay.id, overlay.id);
       }}
       onBlur={() => onDone(currentText())}

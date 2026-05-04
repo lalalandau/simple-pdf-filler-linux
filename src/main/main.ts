@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { PDFCheckBox, PDFDocument, PDFDropdown, PDFRadioGroup, PDFTextField, rgb, StandardFonts } from "pdf-lib";
 import type { ExportSnapshot, OpenedPdf } from "../shared/types.js";
 import { pdfRectToPdfLib } from "../shared/coordinates.js";
+import { findUnsupportedManualText, normalizeManualTextForExport } from "../shared/text.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -98,8 +99,8 @@ async function resolveExportPath(previousPath?: string): Promise<string | null> 
 }
 
 function assertBasicLatin(snapshot: ExportSnapshot) {
-  const invalid = snapshot.overlays.find((overlay) => overlay.type === "text" && /[^\u0009\u000a\u000d\u0020-\u007e]/.test(overlay.text));
-  if (invalid?.type === "text") {
+  const invalid = findUnsupportedManualText(snapshot.overlays);
+  if (invalid) {
     throw new Error(`Manual text on page ${invalid.pageIndex + 1} contains characters unsupported by the MVP export font.`);
   }
 }
@@ -160,7 +161,7 @@ async function exportPdf(snapshot: ExportSnapshot, previousPath?: string) {
 
     if (overlay.type === "text" && overlay.text.trim()) {
       const pdfRect = pdfRectToPdfLib(overlay, pageGeometry);
-      page.drawText(overlay.text, {
+      page.drawText(normalizeManualTextForExport(overlay.text), {
         x: pdfRect.x,
         y: pdfRect.y + Math.max(2, overlay.height - overlay.fontSize),
         size: overlay.fontSize,
