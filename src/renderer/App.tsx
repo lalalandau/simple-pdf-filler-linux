@@ -1,5 +1,6 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
@@ -134,6 +135,18 @@ function createCheckmarkOverlay(pageIndex: number, x: number, y: number): Overla
     y,
     width: 12,
     height: 12
+  };
+}
+
+function createOvalOverlay(pageIndex: number, x: number, y: number): Overlay {
+  return {
+    id: crypto.randomUUID(),
+    type: "oval",
+    pageIndex,
+    x,
+    y,
+    width: 48,
+    height: 24
   };
 }
 
@@ -383,6 +396,7 @@ function App() {
         <ToolButton tool="select" current={editor.tool} dispatch={dispatch} label="Select" />
         <ToolButton tool="text" current={editor.tool} dispatch={dispatch} label="Text" />
         <ToolButton tool="checkmark" current={editor.tool} dispatch={dispatch} label="Checkmark" />
+        <ToolButton tool="oval" current={editor.tool} dispatch={dispatch} label="Circle/Oval" />
         <span className="divider" />
         <button type="button" onClick={() => dispatch({ type: "undo" })} disabled={history.past.length === 0}>
           Undo
@@ -436,7 +450,7 @@ function App() {
         {!pdf ? (
           <section className="empty">
             <h1>Open a PDF to start.</h1>
-            <p>Fill existing form fields or add text/checkmarks to flat PDFs.</p>
+            <p>Fill existing form fields or add text, checkmarks, and ovals to flat PDFs.</p>
             <button type="button" onClick={openPdf} disabled={busy}>
               Open PDF
             </button>
@@ -563,9 +577,16 @@ function PdfPageView({ pdf, page, pageIndex, zoom, editor, fields, commit, updat
     if (editor.tool === "text") {
       const created = createTextOverlay(pageIndex, point.x, point.y, editor.defaultFontSize);
       const overlay = { ...created, ...clampRectToPage(created, page) } as Overlay;
-      commit({ overlays: [...editor.overlays, overlay], fieldValues: editor.fieldValues }, overlay.id, overlay.id);
+      flushSync(() => {
+        commit({ overlays: [...editor.overlays, overlay], fieldValues: editor.fieldValues }, overlay.id, overlay.id);
+      });
+      focusTextEditor(overlay.id);
     } else if (editor.tool === "checkmark") {
       const created = createCheckmarkOverlay(pageIndex, point.x, point.y);
+      const overlay = { ...created, ...clampRectToPage(created, page) } as Overlay;
+      commit({ overlays: [...editor.overlays, overlay], fieldValues: editor.fieldValues }, overlay.id, null);
+    } else if (editor.tool === "oval") {
+      const created = createOvalOverlay(pageIndex, point.x, point.y);
       const overlay = { ...created, ...clampRectToPage(created, page) } as Overlay;
       commit({ overlays: [...editor.overlays, overlay], fieldValues: editor.fieldValues }, overlay.id, null);
     } else {
@@ -678,7 +699,7 @@ function ManualOverlayView({ overlay, page, scale, selected, editing, dispatch, 
       ? {
           ...start.overlay,
           width: Math.max(6, start.overlay.width + dx),
-          height: start.overlay.type === "checkmark" ? Math.max(6, start.overlay.width + dx) : start.overlay.height
+          height: start.overlay.type === "checkmark" ? Math.max(6, start.overlay.width + dx) : Math.max(6, start.overlay.height + dy)
         }
       : {
           ...start.overlay,
@@ -723,13 +744,13 @@ function ManualOverlayView({ overlay, page, scale, selected, editing, dispatch, 
 
   return (
     <div
-      className={`manual-overlay check-overlay ${selected ? "selected" : ""}`}
+      className={`manual-overlay ${overlay.type === "oval" ? "oval-overlay" : "check-overlay"} ${selected ? "selected" : ""}`}
       style={{ left: css.x, top: css.y, width: css.width, height: css.height }}
       onPointerDown={(event) => onPointerDown(event)}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      <CheckmarkSvg />
+      {overlay.type === "oval" ? <OvalSvg /> : <CheckmarkSvg />}
       {selected ? <div className="resize-handle" onPointerDown={(event) => onPointerDown(event, true)} /> : null}
     </div>
   );
@@ -746,19 +767,23 @@ function EditableText({
 }) {
   const ref = useRef<HTMLSpanElement | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = ref.current;
     if (!element) {
       return;
     }
     element.textContent = overlay.text;
-    element.focus();
-    const range = document.createRange();
-    range.selectNodeContents(element);
-    range.collapse(false);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
+    const frame = window.requestAnimationFrame(() => {
+      element.focus();
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      range.collapse(false);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [overlay.id]);
 
   function currentText() {
@@ -769,7 +794,10 @@ function EditableText({
     <span
       ref={ref}
       className="text-editor"
+      data-text-editor-id={overlay.id}
       contentEditable
+      role="textbox"
+      tabIndex={0}
       suppressContentEditableWarning
       onInput={(event) => {
         const text = normalizeManualTextForExport(event.currentTarget.textContent ?? "");
@@ -790,10 +818,34 @@ function EditableText({
   );
 }
 
+function focusTextEditor(overlayId: string) {
+  window.requestAnimationFrame(() => {
+    const element = document.querySelector<HTMLElement>(`[data-text-editor-id="${CSS.escape(overlayId)}"]`);
+    if (!element) {
+      return;
+    }
+    element.focus();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  });
+}
+
 function CheckmarkSvg() {
   return (
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
       <path d="M12 48 L40 78 L90 12" fill="none" stroke="black" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function OvalSvg() {
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <ellipse cx="50" cy="50" rx="45" ry="42" fill="none" stroke="black" strokeWidth="8" />
     </svg>
   );
 }

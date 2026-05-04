@@ -195,7 +195,8 @@ button:disabled {
 }
 
 .detected-checkbox svg,
-.check-overlay svg {
+.check-overlay svg,
+.oval-overlay svg {
   width: 100%;
   height: 100%;
   display: block;
@@ -258,6 +259,8 @@ button:disabled {
 .text-overlay .text-editor {
   min-width: 2rem;
   white-space: nowrap;
+  caret-color: black;
+  cursor: text;
 }
 
 .resize-handle {

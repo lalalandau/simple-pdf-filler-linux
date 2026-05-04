@@ -1,6 +1,6 @@
-export type Tool = "select" | "text" | "checkmark";
+export type Tool = "select" | "text" | "checkmark" | "oval";
 
-export type OverlayType = "text" | "checkmark";
+export type OverlayType = "text" | "checkmark" | "oval";
 
 export interface PageGeometry {
   pageIndex: number;
@@ -31,7 +31,17 @@ export interface CheckmarkOverlay {
   height: number;
 }
 
-export type Overlay = TextOverlay | CheckmarkOverlay;
+export interface OvalOverlay {
+  id: string;
+  type: "oval";
+  pageIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type Overlay = TextOverlay | CheckmarkOverlay | OvalOverlay;
 
 export type DetectedFieldType = "text" | "multiline" | "checkbox" | "radio" | "dropdown" | "unsupported";
 

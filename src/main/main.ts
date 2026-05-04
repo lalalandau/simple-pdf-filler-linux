@@ -209,6 +209,18 @@ async function exportPdf(snapshot: ExportSnapshot, previousPath?: string) {
         color: rgb(0, 0, 0)
       });
     }
+
+    if (overlay.type === "oval") {
+      const pdfRect = pdfRectToPdfLib(overlay, pageGeometry);
+      page.drawEllipse({
+        x: pdfRect.x + pdfRect.width / 2,
+        y: pdfRect.y + pdfRect.height / 2,
+        xScale: pdfRect.width / 2,
+        yScale: pdfRect.height / 2,
+        borderWidth: Math.max(1, Math.min(pdfRect.width, pdfRect.height) * 0.08),
+        borderColor: rgb(0, 0, 0)
+      });
+    }
   }
 
   await writeFile(outputPath, await pdfDoc.save());
